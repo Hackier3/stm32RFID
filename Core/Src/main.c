@@ -4,21 +4,12 @@
   * @file           : main.c
   * @brief          : Main program body
   ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include <stdio.h> // Dodano dla możliwości użycia funkcji związanych z łańcuchami znaków
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -42,6 +33,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
+uint8_t rxByte;
 
 /* Definitions for toggleDiode1 */
 osThreadId_t toggleDiode1Handle;
@@ -56,6 +48,11 @@ const osThreadAttr_t toggleDiode2_attributes = {
   .name = "toggleDiode2",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
+};
+
+osMessageQueueId_t cmdQueueHandle;
+const osMessageQueueAttr_t cmdQueue_attributes = {
+  .name = "cmdQueue"
 };
 /* USER CODE BEGIN PV */
 
@@ -108,7 +105,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Receive_IT(&huart2, &rxByte, 1);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -127,7 +124,7 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
+  cmdQueueHandle = osMessageQueueNew(5, sizeof(uint8_t), &cmdQueue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -290,7 +287,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2)
+    {
+        osMessageQueuePut(cmdQueueHandle, &rxByte, 0, 0);
+        HAL_UART_Receive_IT(&huart2, &rxByte, 1);
+    }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_doToggleDiode1 */
@@ -306,8 +310,8 @@ void doToggleDiode1(void *argument)
   /* Infinite loop */
   while(1)
   {
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_4);
-    osDelay(1000);
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
+      osDelay(500);
   }
   /* USER CODE END 5 */
 }
@@ -322,12 +326,19 @@ void doToggleDiode1(void *argument)
 void doToggleDiode2(void *argument)
 {
   /* USER CODE BEGIN doToggleDiode2 */
-  /* Infinite loop */
-	  while(1)
-	  {
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
-	    osDelay(1100);
-	  }
+  uint8_t receivedCmd;
+
+  for(;;)
+  {
+      if (osMessageQueueGet(cmdQueueHandle, &receivedCmd, NULL, 10) == osOK)
+      {
+          if (receivedCmd == 'A') {
+              HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+          } else if (receivedCmd == 'B') {
+              HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+          }
+      }
+  }
   /* USER CODE END doToggleDiode2 */
 }
 
@@ -339,6 +350,7 @@ void doToggleDiode2(void *argument)
   * @param  htim : TIM handle
   * @retval None
   */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
@@ -370,7 +382,7 @@ void Error_Handler(void)
 #ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
+  * where the assert_param error has occurred.
   * @param  file: pointer to the source file name
   * @param  line: assert_param error line source number
   * @retval None
