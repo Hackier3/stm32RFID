@@ -9,7 +9,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include <stdio.h> // Dodano dla możliwości użycia funkcji związanych z łańcuchami znaków
+#include <stdio.h>
+#include <string.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -64,6 +65,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 void doToggleDiode1(void *argument);
 void doToggleDiode2(void *argument);
+void transmitUARTData(char *pData);
 
 /* USER CODE BEGIN PFP */
 
@@ -234,7 +236,6 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
-
 }
 
 /**
@@ -334,6 +335,7 @@ void doToggleDiode2(void *argument)
       {
           if (receivedCmd == 'A') {
               HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
+              transmitUARTData("xd");
           } else if (receivedCmd == 'B') {
               HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
           }
@@ -363,6 +365,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 1 */
 
   /* USER CODE END Callback 1 */
+}
+
+void transmitUARTData(char *pData){
+	HAL_UART_Transmit(&huart2, (uint8_t*) pData, strlen(pData), 100);
 }
 
 /**
