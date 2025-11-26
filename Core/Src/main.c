@@ -335,9 +335,10 @@ void doToggleDiode2(void *argument)
       {
           if (receivedCmd == 'A') {
               HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_SET);
-              transmitUARTData("xd");
+              transmitUARTData("diode ON\n");
           } else if (receivedCmd == 'B') {
               HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);
+              transmitUARTData("diode OFF\n");
           }
       }
   }
